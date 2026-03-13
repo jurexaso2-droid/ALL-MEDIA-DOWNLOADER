@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIO Downloader API Client</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for tables */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-900 text-slate-200 font-sans p-4 md:p-8">
+
+    <!-- Header Section -->
+    <header class="max-w-3xl mx-auto text-center mt-8 mb-10">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">
+            <i class="fa-solid fa-cloud-arrow-down text-indigo-500 mr-2"></i>AIO Downloader
+        </h1>
+        <p class="text-slate-400 text-sm md:text-base">
+            Paste your YouTube URL below to extract video and audio formats via the API.
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-4xl mx-auto pb-16">
+        
+        <!-- URL Input Bar -->
+        <div class="bg-slate-800 p-2 rounded-full shadow-lg flex items-center border border-slate-700 focus-within:border-indigo-500 transition-colors">
+            <div class="pl-4 text-slate-400">
+                <i class="fa-solid fa-link"></i>
+            </div>
+            <input type="text" id="urlInput" placeholder="e.g. https://youtu.be/q3r_OKLwrO8" 
+                   class="w-full bg-transparent text-white px-4 py-2 focus:outline-none" autocomplete="off">
+            <button id="fetchBtn" onclick="fetchVideo()" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6 py-2 font-semibold transition-colors flex items-center">
+                <i class="fa-solid fa-magnifying-glass md:mr-2"></i><span class="hidden md:inline">Fetch</span>
+            </button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden text-center mt-16 text-slate-400 animate-pulse">
+            <i class="fa-solid fa-circle-notch fa-spin text-5xl text-indigo-500 mb-4"></i>
+            <p class="text-lg">Fetching data from API...</p>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorBox" class="hidden mt-8 bg-red-900/30 border border-red-500 text-red-300 px-6 py-4 rounded-xl text-center shadow-lg">
+        </div>
+
+        <!-- Result Container -->
+        <div id="resultBox" class="hidden mt-10 bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+            <div class="md:flex">
+                
+                <!-- Left: Video Info & Thumbnail -->
+                <div class="md:w-[35%] bg-slate-800/50 p-6 flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-700">
+                    <div class="relative w-full group">
+                        <img id="thumb" src="" alt="Thumbnail" class="w-full rounded-xl shadow-lg mb-5 object-cover aspect-video">
+                        <div class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded font-mono" id="durationTag">0:00</div>
+                    </div>
+                    
+                    <h2 id="title" class="text-base font-bold text-center text-white mb-2 leading-tight line-clamp-3">Video Title</h2>
+                    <div id="authorBox" class="hidden text-slate-400 text-sm mb-4 text-center">
+                        <i class="fa-solid fa-user-circle mr-1"></i><span id="author"></span>
+                    </div>
+                    
+                    <div class="mt-auto pt-4 flex w-full justify-between items-center border-t border-slate-700/50">
+                        <span class="text-xs text-slate-500">API Status: <span class="text-green-400">Online</span></span>
+                        <span id="creator" class="text-indigo-400 text-xs font-semibold"></span>
+                    </div>
+                </div>
+                
+                <!-- Right: Download Links (Tabs) -->
+                <div class="md:w-[65%] p-0 flex flex-col">
+                    
+                    <!-- Tabs Header -->
+                    <div class="flex border-b border-slate-700 bg-slate-800/80">
+                        <button id="videoTabBtn" onclick="switchTab('video')" class="flex-1 py-4 border-b-2 border-indigo-500 text-indigo-400 font-semibold focus:outline-none transition-colors">
+                            <i class="fa-solid fa-video mr-2"></i> Video Formats
+                        </button>
+                        <button id="audioTabBtn" onclick="switchTab('audio')" class="flex-1 py-4 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-semibold focus:outline-none transition-colors">
+                            <i class="fa-solid fa-music mr-2"></i> Audio Formats
+                        </button>
+                    </div>
+                    
+                    <!-- Tables Container -->
+                    <div class="p-4 flex-1 overflow-x-auto">
+                        
+                        <!-- Video Table -->
+                        <div id="videoListWrapper" class="block">
+                            <table class="w-full text-left border-collapse whitespace-nowrap">
+                                <thead>
+                                    <tr class="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                                        <th class="py-3 px-4 font-semibold">Quality</th>
+                                        <th class="py-3 px-4 font-semibold">Format</th>
+                                        <th class="py-3 px-4 font-semibold">Size</th>
+                                        <th class="py-3 px-4 font-semibold text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="videoList" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Audio Table -->
+                        <div id="audioListWrapper" class="hidden">
+                            <table class="w-full text-left border-collapse whitespace-nowrap">
+                                <thead>
+                                    <tr class="text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                                        <th class="py-3 px-4 font-semibold">Quality</th>
+                                        <th class="py-3 px-4 font-semibold">Format</th>
+                                        <th class="py-3 px-4 font-semibold">Size</th>
+                                        <th class="py-3 px-4 font-semibold text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audioList" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Trigger fetch on "Enter" key press
+        document.getElementById('urlInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') fetchVideo();
+        });
+
+        async function fetchVideo() {
+            const urlInput = document.getElementById('urlInput').value.trim();
+            if (!urlInput) return alert("Please enter a valid YouTube URL.");
+
+            // UI Elements
+            const btn = document.getElementById('fetchBtn');
+            const loading = document.getElementById('loading');
+            const resultBox = document.getElementById('resultBox');
+            const errorBox = document.getElementById('errorBox');
+
+            // Reset States
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            loading.classList.remove('hidden');
+            resultBox.classList.add('hidden');
+            errorBox.classList.add('hidden');
+
+            try {
+                const apiUrl = `https://api.deline.web.id/downloader/aio?url=${encodeURIComponent(urlInput)}`;
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) throw new Error("Network error! Server might be unreachable.");
+                const data = await response.json();
+                
+                if (!data.status || !data.result) {
+                    throw new Error("Failed to extract data. Make sure the URL is valid.");
+                }
+
+                renderData(data);
+            } catch (error) {
+                errorBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i> ${error.message}`;
+                errorBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass md:mr-2"></i><span class="hidden md:inline">Fetch</span>';
+                loading.classList.add('hidden');
+            }
+        }
+
+        function renderData(data) {
+            const result = data.result;
+
+            // Media Info Populating
+            document.getElementById('thumb').src = result.thumbnail;
+            document.getElementById('title').textContent = result.title || 'Unknown Title';
+            document.getElementById('creator').innerHTML = `<i class="fa-solid fa-code mr-1"></i>API by ${data.creator || 'Agas'}`;
+            
+            // Format Duration (Seconds to M:SS)
+            const dur = parseInt(result.vduration) || 0;
+            const minutes = Math.floor(dur / 60);
+            const seconds = dur % 60;
+            document.getElementById('durationTag').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Author Display
+            const authorBox = document.getElementById('authorBox');
+            if (result.author) {
+                document.getElementById('author').textContent = result.author;
+                authorBox.classList.remove('hidden');
+            } else {
+                authorBox.classList.add('hidden');
+            }
+
+            // Render Video List
+            const videoList = document.getElementById('videoList');
+            videoList.innerHTML = '';
+            if (result.convert_links && result.convert_links.video) {
+                result.convert_links.video.forEach(item => {
+                    videoList.appendChild(createRow(item, 'video'));
+                });
+            }
+
+            // Render Audio List
+            const audioList = document.getElementById('audioList');
+            audioList.innerHTML = '';
+            if (result.convert_links && result.convert_links.audio) {
+                result.convert_links.audio.forEach(item => {
+                    audioList.appendChild(createRow(item, 'audio'));
+                });
+            }
+
+            // Ensure to reset tabs to video 
+            switchTab('video');
+            document.getElementById('resultBox').classList.remove('hidden');
+        }
+
+        function createRow(item, type) {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-700/30 transition-colors";
+            
+            const quality = item.quality || 'Auto';
+            const format = item.format || 'N/A';
+            const size = item.size ? item.size : '-';
+            const isSelected = item.selected === "selected";
+            
+            // Icon styling depending on audio or video
+            const icon = type === 'video' 
+                ? '<i class="fa-solid fa-film text-indigo-400 mr-2"></i>' 
+                : '<i class="fa-solid fa-headphones text-pink-400 mr-2"></i>';
+
+            tr.innerHTML = `
+                <td class="py-3 px-4 font-medium text-slate-200">
+                    ${icon} ${quality} ${isSelected ? '<span class="ml-2 text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full uppercase">Rec</span>' : ''}
+                </td>
+                <td class="py-3 px-4 uppercase text-slate-400 text-sm font-semibold">${format}</td>
+                <td class="py-3 px-4 text-slate-300 text-sm font-mono">${size}</td>
+                <td class="py-3 px-4 text-right">
+                    <button onclick="handleDownload('${item.key}')" 
+                            class="bg-green-600 hover:bg-green-500 text-white py-1.5 px-4 rounded-lg shadow-md text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-slate-800 flex items-center inline-flex">
+                        <i class="fa-solid fa-download mr-2"></i> <span>Download</span>
+                    </button>
+                </td>
+            `;
+            return tr;
+        }
+
+        // Handles click action for the download button
+        function handleDownload(key) {
+            // If the key is an actual direct HTTP/HTTPS url, open it for download
+            if (key.startsWith('http://') || key.startsWith('https://')) {
+                window.open(key, '_blank');
+                return;
+            }
+
+            // Otherwise, it's an encrypted API conversion key
+            const message = "✅ Key copied to clipboard!\n\nThis API provides an encrypted 'Conversion Key' instead of a direct file URL. You will likely need to send this key to a secondary API endpoint to begin the actual file download.";
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(key).then(() => {
+                    alert(message);
+                }).catch(() => prompt("Copy this Conversion Key manually:", key));
+            } else {
+                prompt("Copy this Conversion Key manually:", key);
+            }
+        }
+
+        // Switching Tabs Logic
+        function switchTab(tab) {
+            const vBtn = document.getElementById('videoTabBtn');
+            const aBtn = document.getElementById('audioTabBtn');
+            const vWrap = document.getElementById('videoListWrapper');
+            const aWrap = document.getElementById('audioListWrapper');
+
+            if(tab === 'video') {
+                vBtn.className = "flex-1 py-4 border-b-2 border-indigo-500 text-indigo-400 font-semibold focus:outline-none transition-colors";
+                aBtn.className = "flex-1 py-4 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-semibold focus:outline-none transition-colors";
+                vWrap.classList.remove('hidden');
+                aWrap.classList.add('hidden');
+            } else {
+                aBtn.className = "flex-1 py-4 border-b-2 border-indigo-500 text-indigo-400 font-semibold focus:outline-none transition-colors";
+                vBtn.className = "flex-1 py-4 border-b-2 border-transparent text-slate-400 hover:text-slate-200 font-semibold focus:outline-none transition-colors";
+                aWrap.classList.remove('hidden');
+                vWrap.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
